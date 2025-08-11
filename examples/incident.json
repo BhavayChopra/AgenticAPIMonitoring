@@ -1,0 +1,12 @@
+{
+  "api": "Sample API",
+  "endpoint": "/v1/example",
+  "method": "GET",
+  "timestamp": "2025-07-01T12:30:00Z",
+  "logs": "upstream timeout after 2100ms; retry=0",
+  "status_code": 504,
+  "latency": 2105,
+  "severity": "medium"
+}
+
+

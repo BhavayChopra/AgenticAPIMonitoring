@@ -1,0 +1,26 @@
+{
+  "name": "AgenticAPIMonitoring",
+  "version": "0.1.0",
+  "private": false,
+  "license": "MIT",
+  "main": "dist/agent/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "agent": "ts-node agent/index.ts",
+    "agent:dev": "tsx watch agent/index.ts",
+    "start": "node dist/agent/index.js examples/incident.json",
+    "lint": "echo \"No linter configured\""
+  },
+  "dependencies": {
+    "neo4j-driver": "^5.22.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "ts-node": "^10.9.2",
+    "@types/node": "^20.11.30",
+    "tsx": "^4.15.7"
+  }
+}
+
+
