@@ -13,6 +13,7 @@ Local-first incident diagnosis and remediation suggestions for APIs using a temp
    - Neo4j (optional for dev; in-memory fallback available)
    - Ollama with model `llama3.2`
    - Node.js 18+
+   - (Optional) Python 3.10+ for advanced agent: see `agentpy/`
 2. Setup
    - Copy `agent/config.example.env` to `.env` and adjust as needed
    - Install deps: `npm install`
@@ -20,6 +21,13 @@ Local-first incident diagnosis and remediation suggestions for APIs using a temp
    - Build: `npm run build`
    - Execute with sample incident: `npm start`
    - Or dev (TS): `npm run agent -- examples/incident.json`
+   - Start dashboard: `npm run dashboard`
+
+### Advanced Agent (Python, optional)
+- Start service:
+  - `cd agentpy && python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`
+  - `uvicorn app.main:app --host 0.0.0.0 --port 8088 --reload`
+- Set `AGENTPY_URL=http://127.0.0.1:8088` in `.env` to route incidents through the advanced workflow
 
 ### Repo Structure
 - `agent/` TypeScript agent worker
@@ -32,6 +40,8 @@ See `agent/config.example.env` for configuration. Key vars:
 - `NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD`
 - `OLLAMA_HOST, OLLAMA_PORT, OLLAMA_MODEL`
 - `MAX_EVIDENCE, SUGGEST_MODE, CONFIDENCE_THRESHOLD`
+- `AGENTPY_URL` to enable the advanced Python workflow
+- `SLACK_WEBHOOK_URL` to enable Slack alerts
 
 ### Data Model
 See `docs/schema.md` for nodes, relationships, temporal properties, and example queries.

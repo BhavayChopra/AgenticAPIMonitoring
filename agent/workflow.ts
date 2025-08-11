@@ -6,6 +6,8 @@
 import { getGraphClient, GraphClient } from "./graph-client";
 import { HybridRetriever } from "./retriever";
 import { OllamaClient } from "./ollama";
+import { sendSlackAlert } from "./slack";
+import fetch from "node-fetch";
 import {
   Incident,
   nowIso,
@@ -37,44 +39,79 @@ export class AgentWorkflow {
 
     const incidentId = await this.graph.createIncident(incident, endpointId);
 
-    const docs = await this.graph.getDocsForEndpointAsOf(endpointId, incident.timestamp);
-    const retrieval = await this.retriever.retrieve(
-      this.buildQueryFromIncident(incident),
-      docs
-    );
-
-    const evidencePassages = retrieval.passages.slice(0, 6).map((p) => ({ docId: p.docId, text: p.text }));
-    const docsMetadata = docs.map((d) => ({
-      id: d.id,
-      title: d.title,
-      version: d.version,
-      valid_from: d.valid_from,
-      valid_to: d.valid_to ?? null,
-    }));
-
-    const llmRes = await this.llm.generateDiagnosis(incident, evidencePassages, docsMetadata);
+    let llmJson: LLMOutput;
+    let rawResponse = "";
+    let evidenceDocIds: string[] = [];
+    const agentPyUrl = process.env.AGENTPY_URL;
+    if (agentPyUrl) {
+      // Delegate to Python advanced agent
+      const res = await fetch(`${agentPyUrl.replace(/\/$/, "")}/run_incident`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ incident }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`agentpy error ${res.status}: ${text}`);
+      }
+      const data: any = await res.json();
+      rawResponse = JSON.stringify(data);
+      llmJson = data?.result;
+      if (!llmJson) throw new Error("agentpy did not return result field");
+    } else {
+      // Local TS path (retrieval + LLM)
+      const docs = await this.graph.getDocsForEndpointAsOf(endpointId, incident.timestamp);
+      const retrieval = await this.retriever.retrieve(
+        this.buildQueryFromIncident(incident),
+        docs
+      );
+      const evidencePassages = retrieval.passages.slice(0, 6).map((p) => ({ docId: p.docId, text: p.text }));
+      evidenceDocIds = evidencePassages.map((e) => e.docId);
+      const docsMetadata = docs.map((d) => ({
+        id: d.id,
+        title: d.title,
+        version: d.version,
+        valid_from: d.valid_from,
+        valid_to: d.valid_to ?? null,
+      }));
+      const llmRes = await this.llm.generateDiagnosis(incident, evidencePassages, docsMetadata);
+      rawResponse = llmRes.raw;
+      llmJson = llmRes.json;
+    }
 
     const runId = await this.graph.createAgentRun({
-      inputs: { incident, evidenceDocIds: evidencePassages.map((e) => e.docId) },
-      outputs: llmRes.json as any,
+      inputs: { incident, evidenceDocIds },
+      outputs: llmJson as any,
       executed_at: nowIso(),
       elapsed_ms: Date.now() - startedAt,
       status: "success",
-      raw_llm_response: llmRes.raw,
+      raw_llm_response: rawResponse,
     });
 
     const fixId = await this.graph.createFixAndLink(
       {
         incident_id: incidentId,
         suggested_by: opts?.agentId ?? "api-sentinel-agent",
-        suggestion_text: llmRes.json.suggested_fix,
-        patch_snippet: llmRes.json.patch_snippet ?? null,
-        confidence: llmRes.json.confidence,
+        suggestion_text: llmJson.suggested_fix,
+        patch_snippet: llmJson.patch_snippet ?? null,
+        confidence: llmJson.confidence,
       },
       runId
     );
 
-    return { fixId, llm: llmRes.json };
+    // Slack alert when high severity or high confidence
+    try {
+      const shouldAlert =
+        (incident.severity && ["high", "critical"].includes(incident.severity)) ||
+        (llmJson.confidence >= CONFIDENCE_THRESHOLD);
+      if (shouldAlert) {
+        await sendSlackAlert({ fixId, incident, result: llmJson });
+      }
+    } catch (e) {
+      // swallow slack errors
+    }
+
+    return { fixId, llm: llmJson };
   }
 
   private buildQueryFromIncident(incident: Incident): string {
