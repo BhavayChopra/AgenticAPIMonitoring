@@ -7,6 +7,7 @@ Local-first incident diagnosis and remediation suggestions for APIs using a temp
 - Hybrid retrieval (graph filter + vector/BM25 passage ranking)
 - Tool-calling agent (LangGraph) with structured outputs (JSON) using Claude 3.5 Sonnet
 - Audit trail: persists AgentRun, Fix, and tool call events
+- Configurable with Slack for Alerts
 
 ### Quickstart
 1. Install prerequisites:
