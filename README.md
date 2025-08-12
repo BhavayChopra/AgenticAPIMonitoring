@@ -2,6 +2,8 @@
 
 Local-first incident diagnosis and remediation suggestions for APIs using a temporally-aware knowledge graph and a Python agent powered by Claude 3.5 Sonnet.
 
+https://apisentinel.netlify.app/
+
 ### Features
 - Temporal knowledge graph (Neo4j or in-memory fallback)
 - Hybrid retrieval (graph filter + vector/BM25 passage ranking)
