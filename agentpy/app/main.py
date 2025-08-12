@@ -1,13 +1,13 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
-from typing import List, Optional, Any, Dict
+from typing import Optional
 import os
 
-# Placeholder imports where you'd wire LangGraph/LangChain
-# from langgraph.graph import StateGraph
-# from langchain.tools import Tool
+from .dashboard import router as dashboard_router
+from .schemas import RunIncidentRequest, AgentResult
+from .agent import AgenticWorkflow
 
 app = FastAPI(title="API Sentinel AgentPy")
+app.include_router(dashboard_router)
 
 
 class EvidenceItem(BaseModel):
@@ -52,18 +52,11 @@ def health():
 
 @app.post("/run_incident")
 def run_incident(req: RunIncidentRequest):
-  # NOTE: This is a minimal placeholder that returns a deterministic stub.
-  # Replace with LangGraph agent nodes + tools, integrating retriever and tool calls.
-  incident = req.incident
-  text_excerpt = incident.logs[:200]
-  result = LLMOutput(
-    root_cause="Timeout exceeded configured limit",
-    confidence=0.75,
-    suggested_fix="Increase upstream timeout to 2500ms and enable 2 retries",
-    patch_snippet="config.http.timeout=2500\nconfig.http.retries=2",
-    evidence=[EvidenceItem(type="incident", id="incident_local", excerpt=text_excerpt)],
-    next_steps=["Deploy config change", "Monitor P95 latency"]
-  )
-  return {"result": result.model_dump(), "traces": []}
+  try:
+    agent = AgenticWorkflow()
+    result: AgentResult = agent.run(req.incident)
+    return {"result": result.model_dump(), "traces": []}
+  except Exception as e:
+    raise HTTPException(500, str(e))
 
 

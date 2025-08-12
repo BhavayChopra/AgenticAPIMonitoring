@@ -9,13 +9,11 @@
     "agent": "ts-node agent/index.ts",
     "agent:dev": "tsx watch agent/index.ts",
     "start": "node dist/agent/index.js examples/incident.json",
-    "dashboard": "tsx dashboard/server.ts",
     "lint": "echo \"No linter configured\""
   },
   "dependencies": {
     "neo4j-driver": "^5.22.0",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2",
     "node-fetch": "^3.3.2",
     "simple-git": "^3.24.0"
   },

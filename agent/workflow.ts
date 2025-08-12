@@ -5,7 +5,6 @@
 
 import { getGraphClient, GraphClient } from "./graph-client";
 import { HybridRetriever } from "./retriever";
-import { OllamaClient } from "./ollama";
 import { sendSlackAlert } from "./slack";
 import fetch from "node-fetch";
 import {
@@ -24,12 +23,10 @@ export type OnIncidentOptions = {
 export class AgentWorkflow {
   private graph: GraphClient;
   private retriever: HybridRetriever;
-  private llm: OllamaClient;
 
-  constructor(graph?: GraphClient, retriever?: HybridRetriever, llm?: OllamaClient) {
+  constructor(graph?: GraphClient, retriever?: HybridRetriever) {
     this.graph = graph ?? getGraphClient();
     this.retriever = retriever ?? new HybridRetriever();
-    this.llm = llm ?? new OllamaClient();
   }
 
   async onIncident(incident: Incident, opts?: OnIncidentOptions): Promise<{ fixId: string; llm: LLMOutput }>{
@@ -59,24 +56,7 @@ export class AgentWorkflow {
       llmJson = data?.result;
       if (!llmJson) throw new Error("agentpy did not return result field");
     } else {
-      // Local TS path (retrieval + LLM)
-      const docs = await this.graph.getDocsForEndpointAsOf(endpointId, incident.timestamp);
-      const retrieval = await this.retriever.retrieve(
-        this.buildQueryFromIncident(incident),
-        docs
-      );
-      const evidencePassages = retrieval.passages.slice(0, 6).map((p) => ({ docId: p.docId, text: p.text }));
-      evidenceDocIds = evidencePassages.map((e) => e.docId);
-      const docsMetadata = docs.map((d) => ({
-        id: d.id,
-        title: d.title,
-        version: d.version,
-        valid_from: d.valid_from,
-        valid_to: d.valid_to ?? null,
-      }));
-      const llmRes = await this.llm.generateDiagnosis(incident, evidencePassages, docsMetadata);
-      rawResponse = llmRes.raw;
-      llmJson = llmRes.json;
+      throw new Error("AGENTPY_URL not set. Python agent is required.");
     }
 
     const runId = await this.graph.createAgentRun({
